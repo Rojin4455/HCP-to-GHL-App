@@ -120,7 +120,7 @@ class HousecallProWebhookView(View):
             # Parse webhook data
             webhook_data = json.loads(request.body)
             if "foo" in webhook_data:
-                return JsonResponse(result, status=200)
+                return JsonResponse(status=200)
 
             print("Webhook Data: ", webhook_data)
 
