@@ -17,6 +17,18 @@ class GHLAuthCredentials(models.Model):
 
     def __str__(self):
         return f"{self.user_id} - {self.company_id}"
+    
+
+class Webhook(models.Model):
+    event = models.CharField(max_length=100)
+    company_id = models.CharField(max_length=100)
+    payload = models.JSONField()  # Store the entire raw payload
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.event} - {self.company_id}"
+    
+    
 
 class HCPToGHLMapping(models.Model):
     """Maps Housecall Pro company_id to GoHighLevel location_id and credentials"""

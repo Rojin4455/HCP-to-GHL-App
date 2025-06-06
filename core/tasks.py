@@ -39,6 +39,8 @@ def make_api_call():
     
     new_tokens = response.json()
 
+    print("new tokens: ", new_tokens)
+
     obj, created = GHLAuthCredentials.objects.update_or_create(
             location_id= new_tokens.get("locationId"),
             defaults={

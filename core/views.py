@@ -5,15 +5,18 @@ import json
 from django.shortcuts import redirect
 from core.models import GHLAuthCredentials
 from django.views.decorators.csrf import csrf_exempt
-# from core.tasks import handle_webhook_event
 import logging
-# from .services import HousecallProGHLService
 from django.views import View
 from django.utils.decorators import method_decorator
+from core.models import Webhook
+from core.services import HousecallProWebhookService
+import traceback
 
 
 
 
+
+logger = logging.getLogger(__name__)
 
 
 GHL_CLIENT_ID = config("GHL_CLIENT_ID")
@@ -107,16 +110,7 @@ logger = logging.getLogger(__name__)
 #         return JsonResponse({"status": "error", "message": "Only POST method is allowed"}, status=405)
     
 
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.utils.decorators import method_decorator
-from django.views import View
-import json
-import logging
-from core.services import HousecallProWebhookService
 
-logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class HousecallProWebhookView(View):
@@ -125,6 +119,18 @@ class HousecallProWebhookView(View):
         try:
             # Parse webhook data
             webhook_data = json.loads(request.body)
+
+            print("Webhook Data: ", webhook_data)
+
+            event = webhook_data.get("event")
+            company_id = webhook_data.get("company_id")
+
+            # Save to DB
+            Webhook.objects.create(
+                event=event,
+                company_id=company_id,
+                payload=webhook_data
+            )
             
             # Log the received webhook
             logger.info(f"Received webhook: {webhook_data.get('event')} for company {webhook_data.get('company_id')}")
@@ -132,6 +138,7 @@ class HousecallProWebhookView(View):
             # Process the webhook
             service = HousecallProWebhookService()
             result = service.process_webhook(webhook_data)
+            print("result : ", result)
             
             return JsonResponse(result, status=200)
             
@@ -139,5 +146,6 @@ class HousecallProWebhookView(View):
             logger.error("Invalid JSON in webhook request")
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
-            logger.error(f"Error processing webhook: {str(e)}")
+            logger.error("Exception in process_webhook:\n" + traceback.format_exc())
+           
             return JsonResponse({"error": "Internal server error"}, status=500)
