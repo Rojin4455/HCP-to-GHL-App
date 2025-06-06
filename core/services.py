@@ -153,7 +153,7 @@ class GoHighLevelService:
             logger.error(f"Error creating opportunity in GHL: {e}")
             return None
 
-    def update_opportunity(self, opportunity_id: str, opportunity_data: Dict[str, Any]) -> bool:
+    def update_opportunity(self, option, opportunity_id: str, opportunity_data: Dict[str, Any]) -> bool:
         """Update an opportunity in GoHighLevel"""
         url = f"{self.BASE_URL}/opportunities/{opportunity_id}"
         
@@ -163,11 +163,20 @@ class GoHighLevelService:
         stage_id = self.get_pipeline_stage_id(event_type=self.event)
         
         print("Stage ID: ", stage_id)
+        if option:
+            raw_value = option.get("total_amount")
+        else:
+            raw_value = opportunity_data.get('total_amount', "")
 
+        # Ensure it's a valid number and convert to float with 2 decimal places
+        try:
+            value = "{:.2f}".format(int(raw_value) / 100)
+        except (ValueError, TypeError):
+            value = "0.00"
         
         payload = {
             "pipelineStageId": stage_id,
-            "monetaryValue": opportunity_data.get('total_amount', 0),
+            "monetaryValue": value
         }
         
         # Update name if it's a job
@@ -304,7 +313,7 @@ class HousecallProWebhookService:
         ).first()
 
         if not contact_mapping:
-            return {"message": "Contact is exists"}
+            return {"message": "Contact is not exists"}
         
 
         ghl_contact_id = self.ghl_service.delete_contact(contact_mapping.ghl_contact_id, customer_data)
@@ -445,7 +454,7 @@ class HousecallProWebhookService:
             
             if opp_mapping:
                 # Update existing opportunity
-                success = self.ghl_service.update_opportunity(opp_mapping.ghl_opportunity_id, opportunity_data)
+                success = self.ghl_service.update_opportunity(options[0], opp_mapping.ghl_opportunity_id, opportunity_data)
                 return {"message": "Opportunity updated" if success else "Failed to update opportunity"}
             else:
                 # Create new opportunity
@@ -479,7 +488,7 @@ class HousecallProWebhookService:
                     opp_mapping.save()
                     
                     # Update the opportunity with job data
-                    success = self.ghl_service.update_opportunity(opp_mapping.ghl_opportunity_id, opportunity_data)
+                    success = self.ghl_service.update_opportunity(None, opp_mapping.ghl_opportunity_id, opportunity_data)
                     return {"message": "Job opportunity updated" if success else "Failed to update job opportunity"}
                 else:
                     return {"error": "No corresponding estimate opportunity found"}
