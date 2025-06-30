@@ -38,7 +38,7 @@ class GoHighLevelService:
             'job.started':         '706a1981-db46-4b0d-9543-47270c20193e',  # Job Started
             'job.completed':       '6be00967-b2ad-4e5f-b6a2-7f63d6977a39',  # Job Completed
         }
-        return stage_mapping.get(event_type)
+        return stage_mapping.get(event_type,"")
     
     PIPELINE_ID = "kHLBjOkrltkMAOOIINvs"
 
@@ -63,7 +63,7 @@ class GoHighLevelService:
             "email": contact_data.get('email', ''),
             "phone": contact_data.get('mobile_number', ''),
             "source": contact_data.get('lead_source', ''),
-            "tags": contact_data.get('tags', [])
+            "tags": contact_data.get('tags', [])+"HouseCallPro"
         }
         
         # Add additional phone numbers if available
@@ -138,11 +138,12 @@ class GoHighLevelService:
             "locationId": location_id,
             "contactId": contact_id,
             "name": f"{opportunity_data["customer"]["first_name"]} {opportunity_data["customer"]["last_name"]} #{opportunity_data.get('estimate_number', 'N/A')}",
-            "pipelineStageId": stage_id,
             "source":opportunity_data.get("source", ""),
             "status": "open",
             "monetaryValue": opportunity_data.get('total_amount', 0),
         }
+        if stage_id:
+            payload["pipelineStageId"] = stage_id
 
         try:
             response = requests.post(url, headers=self.headers, json=payload)
@@ -242,8 +243,8 @@ class HousecallProWebhookService:
             return self._handle_estimate_updated(webhook_data, mapping)
 
         
-        # elif self.event == 'estimate.updated':
-        #     return self._handle_estimate_updated(webhook_data, mapping)
+        elif self.event == 'estimate.updated':
+            return self._handle_estimate_updated(webhook_data, mapping)
         elif self.event == 'estimate.sent':
             return self._handle_estimate_sent(webhook_data, mapping)
         # elif self.event == 'estimate.option.created':
@@ -257,6 +258,8 @@ class HousecallProWebhookService:
         elif self.event == 'job.scheduled':
             return self._handle_job_created(webhook_data, mapping)
         elif self.event == 'job.on_my_way':
+            return self._handle_job_created(webhook_data, mapping)
+        elif self.event == 'job.updated':
             return self._handle_job_created(webhook_data, mapping)
         elif self.event == 'job.started':
             return self._handle_job_started(webhook_data, mapping)
@@ -394,6 +397,14 @@ class HousecallProWebhookService:
         options = estimate_data.get("options",[])
         
         return self._create_or_update_opportunity(options, estimate_data, customer_data, mapping, is_estimate=True)
+
+    def _handle_job_created(self, webhook_data: Dict[str, Any], mapping: HCPToGHLMapping) -> Dict[str, Any]:
+        """Handle job.created webhook"""
+        job_data = webhook_data.get('job', {})
+        customer_data = job_data.get('customer', {})
+        
+        return self._create_or_update_opportunity(None, job_data, customer_data, mapping, is_estimate=False)
+    
 
     def _handle_job_created(self, webhook_data: Dict[str, Any], mapping: HCPToGHLMapping) -> Dict[str, Any]:
         """Handle job.created webhook"""
